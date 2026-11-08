@@ -24,6 +24,9 @@ app.use('/api/movies', movieRoutes);
 const watchlistRoutes = require('./routes/wlRoute');
 app.use('/api/watchlist', watchlistRoutes);
 
+const reviewRoutes = require('./routes/revRoute');
+app.use('/api/watched', reviewRoutes);
+
 app.get('/', (req, res) => {
   res.json({ message: 'Movie Watchlist API Backend is running!' });
 });
