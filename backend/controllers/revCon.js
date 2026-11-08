@@ -34,7 +34,7 @@ const getWatchedHistory = async (req, res) => {
     return res.status(200).json(formattedHistory);
   } catch (error) {
     console.error("ERROR GET WATCHED HISTORY:", error);
-    return res.status(200).json([]); // Fallback aman agar frontend tidak crash/re-render otomatis
+    return res.status(200).json([]);
   }
 };
 
@@ -43,8 +43,8 @@ const logWatchedMovie = async (req, res) => {
     const userId = req.user.userId;
 
     const movieIdRaw = req.body.movieId || req.body.id || (req.body.movie && req.body.movie.id);
-    const { rating, comment, review } = req.body; // Menangkap deskripsi ulasan (bisa berupa properti comment atau review)
-
+    const { rating, comment, review } = req.body;
+    
     const finalComment = comment || review;
 
     if (!movieIdRaw || !rating || !finalComment) {
