@@ -7,7 +7,7 @@
 // 1. STATE MANAGEMENT
 // ==========================================
 const state = {
-  apiBaseUrl: localStorage.getItem('filmlog_api_url') || 'https://movie-watchlist-starter-1rnqojhp4-joshe-09c8.vercel.app',
+  apiBaseUrl: localStorage.getItem('filmlog_api_url') || 'https://movie-watchlist-starter-1rnqojhp4-joshe-09c8.vercel.app/api',
   token: localStorage.getItem('filmlog_token') || null,
   user: JSON.parse(localStorage.getItem('filmlog_user') || 'null'),
   currentTab: 'discover',
