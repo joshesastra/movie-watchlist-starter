@@ -4,3 +4,4 @@ Thumbs.db
 backend/.env
 .env.local
 node_modules/
+backend/node_modules/
