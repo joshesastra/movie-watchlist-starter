@@ -1,0 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const { getWatchlist } = require('../controllers/wlCon');
+const authenticateToken = require('../middleware/authMW');
+
+router.use(authenticateToken);
+
+router.get('/', getWatchlist);
+
+module.exports = router;
