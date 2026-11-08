@@ -27,39 +27,33 @@ const getWatchlist = async (req, res) => {
 const addToWatchlist = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { movieId } = req.body;
+    
+    const movieIdRaw = req.body.movieId || req.body.id || (req.body.movie && req.body.movie.id); 
 
-    if (!movieId) {
-      return res.status(400).json({ error: 'ID Film wajib diisi!' });
+    if (movieIdRaw === undefined || movieIdRaw === null) {
+      return res.status(400).json({ error: 'ID Film tidak terbaca dari body request!' });
     }
+
+    const movieId = parseInt(movieIdRaw);
 
     const existingItem = await prisma.watchlist.findUnique({
       where: {
-        userId_movieId: { 
-          userId, 
-          movieId: parseInt(movieId) 
-        }
+        userId_movieId: { userId, movieId }
       }
     });
 
     if (existingItem) {
-      return res.status(409).json({ error: 'Film ini sudah ada di dalam daftar watchlist Anda!' });
+      return res.status(409).json({ error: 'Film ini sudah ada di watchlist Anda!' });
     }
 
     const newItem = await prisma.watchlist.create({
-      data: {
-        userId,
-        movieId: parseInt(movieId)
-      }
+      data: { userId, movieId }
     });
 
-    return res.status(201).json({ 
-      message: 'Film berhasil ditambahkan ke daftar watchlist!', 
-      data: newItem 
-    });
+    return res.status(201).json({ message: 'Berhasil ditambahkan!', data: newItem });
   } catch (error) {
     console.error("ERROR ADD TO WATCHLIST:", error);
-    return res.status(500).json({ error: 'Gagal menambahkan film ke watchlist.' });
+    return res.status(500).json({ error: 'Gagal menambahkan ke watchlist.' });
   }
 };
 

@@ -1,6 +1,11 @@
-const { prisma } = require('../index');
-const bcrypt = require('bcryptjs');
+const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
+const { Pool } = require('pg');const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 const register = async (req, res) => {
   try {

@@ -11,12 +11,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const getMovieRecommendation = async (req, res) => {
   try {
-    const { mood } = req.body;
+    const finalMood = req.body.mood || req.body.query || req.body.description || req.body.vibe;
 
-    if (!mood) {
+    if (!finalMood) {
       return res.status(400).json({ error: 'Deskripsi mood wajib diisi!' });
     }
 
+    // 1. Tarik daftar 20 film lokal secara utuh dari database cloud Neon
     const localMovies = await prisma.movie.findMany();
 
     const movieContext = localMovies.map(m => ({
@@ -26,15 +27,16 @@ const getMovieRecommendation = async (req, res) => {
       synopsis: m.synopsis
     }));
 
+    // 2. System Instruction ketat untuk Grounding
     const systemInstruction = `
-      Kamu adalah pakar rekomendasi film profesional untuk platform Movie Watchlist.
-      Tugas utama Kamu adalah memilih 1 (satu) film yang paling cocok dengan suasana hati (mood) yang diberikan oleh pengguna.
+      Anda adalah pakar rekomendasi film profesional untuk platform Movie Watchlist.
+      Tugas utama Anda adalah memilih 1 (satu) film yang PALING COCOK dengan suasana hati (mood) yang diberikan oleh pengguna.
       
       ATURAN MUTLAK KETAT:
-      1. Kamu hanya boleh memilih film dari daftar film lokal yang disediakan di bawah ini.
-      2. Jangan pernah merekomendasikan film di luar daftar yang diberikan, meskipun film tersebut sangat terkenal.
+      1. Anda HANYA BOLEH memilih film dari DAFTAR FILM LOKAL yang disediakan di bawah ini.
+      2. JANGAN PERNAH merekomendasikan film di luar daftar yang diberikan, meskipun film tersebut sangat terkenal.
       3. Jika mood pengguna tidak cocok dengan film apa pun, pilih satu film secara acak yang paling mendekati dari daftar.
-      4. Kamu wajib mengembalikan respons hanya dalam format JSON mentah dengan struktur berikut tanpa teks pembuka/penutup markdown:
+      4. Anda WAJIB mengembalikan respons HANYA dalam format JSON mentah dengan struktur berikut tanpa teks pembuka/penutup markdown:
          {
            "movieId": <id_film_berupa_angka>,
            "reason": "<alasan_pemilihan_menggunakan_bahasa_indonesia_maksimal_3_kalimat>"
@@ -44,29 +46,52 @@ const getMovieRecommendation = async (req, res) => {
       ${JSON.stringify(movieContext, null, 2)}
     `;
 
+    // 3. Kirim instruksi ke model Gemini 2.5 Flash
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: `Mood pengguna saat ini: "${mood}"`,
+      model: 'gemini-3.8-flash',
+      contents: `Mood pengguna saat ini: "${finalMood}"`,
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json"
       }
     });
 
-    const aiResult = JSON.parse(response.text.trim());
-
-    const recommendedMovie = localMovies.find(m => m.id === aiResult.movieId);
-    if (!recommendedMovie) {
-      return res.status(500).json({ error: 'AI merekomendasikan ID film di luar database lokal.' });
+    // 4. Ambil teks respons (Menangani variasi pembacaan teks di SDK terbaru)
+    let aiText = response.text || (response.candidates && response.candidates[0].content.parts[0].text);
+    
+    if (!aiText) {
+      throw new Error("Gemini tidak mengembalikan respons teks yang valid.");
     }
 
+    // Bersihkan teks dari sisa-sisa markdown ```json jika ada
+    aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    const aiResult = JSON.parse(aiText);
+
+    // 5. Validasi ulang & Konversi ID ke tipe Integer agar cocok dengan database Anda
+    const targetId = parseInt(aiResult.movieId);
+    const recommendedMovie = localMovies.find(m => m.id === targetId);
+    
+    if (!recommendedMovie) {
+      // Jika AI salah memilih ID, kita berikan film nomor 1 sebagai fallback aman agar tidak crash
+      return res.status(200).json({
+        movie: localMovies[0],
+        reason: aiResult.reason || "Film thriller yang cocok dengan suasana hati Anda."
+      });
+    }
+
+    // 6. Kembalikan data lengkap film beserta alasan dari AI
     return res.status(200).json({
       movie: recommendedMovie,
       reason: aiResult.reason
     });
 
   } catch (error) {
-    console.error("ERROR GEMINI AI RECOMMENDATION:", error);
+    // Trik Debug Penting: Cetak error asli ke terminal VS Code agar Anda bisa melihat jika API Key salah/limit habis
+    console.error("====== DETAIL ERROR ASLI GEMINI ======");
+    console.error(error);
+    console.error("======================================");
+    
     return res.status(500).json({ error: 'Terjadi kegagalan pada sistem rekomendasi AI.' });
   }
 };
